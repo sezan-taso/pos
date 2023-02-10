@@ -9,3 +9,6 @@ os.img: ipl.bin Makefile
 
 img:
 	make os.img
+
+run:
+	run
