@@ -1,6 +1,7 @@
 ; pos
 ; TAB=4
 
+CYLS	EQU		10
 	ORG		0x7c00
 
 ; FAT12フォーマット
@@ -34,6 +35,55 @@ entry:
 	MOV		DS,AX
 	MOV		ES,AX
 
+; ディスク読み込み
+
+	MOV		AX,0x0820
+	MOV		ES,AX
+	MOV		CH,0			; シリンダ0
+	MOV		DH,0			; ヘッド0
+	MOV		CL,2			; セクタ2
+
+readloop:
+	MOV		SI,0			; 失敗回数カウンタ
+
+retry:
+	MOV		AH,0x02			; AH=0x02 : ディスク読み込み
+	MOV		AL,1			; 1セクタ
+	MOV		BX,0
+	MOV		DL,0x00			; Aドライブ
+	INT		0x13			; ディスクBIOS呼び出し
+	JNC		next			; エラーが起きなければ次
+	ADD		SI,1
+	CMP		SI,5			; SIと5を比較
+	JAE		error
+	MOV		AH,0x00
+	MOV		DL,0x00
+	INT		0x13			; ドライブリセット
+	JMP		retry
+
+next
+	MOV		AX,ES			; アドレスを0x200進める
+	ADD		AX,0x0020
+	MOV		ES,AX
+	ADD		CL,1
+	CMP		CL,18
+	JBE		readloop
+	MOV		CL,1
+	ADD		DH,1
+	CMP		DH,2
+	JB		readloop
+	MOV		DH,0
+	ADD		CH,1
+	CMP		CH,CYLS
+	JB		readloop
+
+fin:
+	HLT
+	JMP		fin
+
+error:
+	MOV		AX,0
+	MOV		ES,AX
 	MOV		SI,msg
 
 putloop:
@@ -46,13 +96,9 @@ putloop:
 	INT		0x10			; ビデオBIOSの呼び出し
 	JMP		putloop
 
-fin:
-	HLT
-	JMP		fin
-
 msg:
 	DB		0x0a, 0x0a		; 改行
-	DB		"hello, world"
+	DB		"load error"
 	DB		0x0a
 	DB		0
 
